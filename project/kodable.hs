@@ -22,16 +22,23 @@ load name = do
     if option == "play"
         then
             do
-                moves <- getDirections [] 0
+                moves <- getDirections [] [] 0
                 play moves (map (Text.unpack) xs) 0 '-'
     else
-        putStrLn "INVALID"
+        if ((take 5 option) == "play ")
+            then
+                do
+                    moves <- getDirections (splitString ' ' (drop 5 option) []) [] 0
+                    play moves (map (Text.unpack) xs) 0 '-'
+            else
+                putStrLn "INVALID OPTION"
 
 currBallPos :: [String]  -> (Int,Int)
 currBallPos xs = if length positions == 1 then head positions else (-1,-1)
                     where positions = getPos xs '@'
 
 play :: [String] -> [String] -> Int -> Char -> IO ()
+play [] _ _ _ = return ()
 play ["None"] _ _ _ = return ()
 play (move:next:moves) board bonus prev = do
     if (fst newBoard) == board
@@ -131,8 +138,8 @@ moveOneDown :: [String] -> Int -> Int -> Char -> Char -> [String]
 moveOneDown board row idx new prev = (take row board) ++ [((take idx (board!!(row))) ++ [newPrev] ++ drop (idx+1) (board!!(row)))] ++ [((take idx (board!!(row+1))) ++ [new] ++ drop (idx+1) (board!!(row+1)))] ++ (drop (row+2) board)
     where newPrev = if prev == 'b' then '-' else prev
 
-getDirections :: [String] -> Int -> IO [String]
-getDirections list x = do
+getDirections :: [String] -> [String] -> Int -> IO [String]
+getDirections func list x = do
     if x == 0
         then
             putStr "First direction: "
@@ -140,17 +147,20 @@ getDirections list x = do
             putStr "Next direction: "
     move <- getLine
     if move == ""
-        then 
+        then
             return list
         else
             do
-                getDirections (list ++ (parseConditional move)) (x+1)
+                getDirections func (list ++ (parseMove func move)) (x+1)
 
-parseConditional :: String -> [String]
-parseConditional move
+parseMove :: [String] -> String -> [String]
+parseMove func move
  | (length move > 4) && ((take 4 move) == "Cond")   = [(take 1 $ drop 5 move), (take (len-8-1) $ drop 8 move)]
+ | (length move > 4) && ((take 4 move) == "Loop") = concat $ map (parseMove func) $ concat $ replicate itr (splitString ',' (take (len-8-1) $ drop 8 move) [])
+ | move == "Function"   = func
  | otherwise = [move]
-    where len = length move
+    where   len = length move
+            itr = read $ take 1 $ drop 5 move :: Int
 
 
 putBoard :: [String] -> IO ()
@@ -158,3 +168,7 @@ putBoard [] = return ()
 putBoard (l:ls) = do
     putStrLn l
     putBoard ls
+
+splitString :: Char -> String -> String -> [String]
+splitString del [] ds = [ds]
+splitString del (c:cs) ds = if c==del then (ds:splitString del cs []) else splitString del cs (ds++[c])
