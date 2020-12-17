@@ -1,3 +1,23 @@
+module Kodable
+  ( load
+  , play
+  , currBallPos
+  , getPos
+  , makeMove
+  , moveRight
+  , moveLeft
+  , moveUp
+  , moveDown
+  , moveOneRight
+  , moveOneLeft
+  , moveOneUp
+  , moveOneDown
+  , parseMove
+  , getDirections
+  , splitString
+  , putBoard
+  ) where
+
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
 -- import Data.Text.Conversions as Text
@@ -39,32 +59,53 @@ currBallPos xs = if length positions == 1 then head positions else (-1,-1)
 
 play :: [String] -> [String] -> Int -> Char -> IO ()
 play [] _ _ _ = return ()
-play ["None"] _ _ _ = return ()
-play (move:next:moves) board bonus prev = do
-    if (fst newBoard) == board
+play ["None"] _ _ prev = do
+    if prev == 't'
         then
-            putStrLn ("Sorry, error: cannot move " ++ move)
+            putStrLn "Congratulations! You win the game!"
         else
-            do
-                putBoard (fst newBoard)
-                if (snd newBoard) > bonus
-                    then
-                        putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es)")
-                    else
-                        putStr ""
-                putStrLn ""
-                if (length next == 1)
-                    then
-                        if [((board !! newPosX) !! newPosY)] /= next
+            return ()
+play (move:next:moves) board bonus prev = do
+    if ((fst newBoard) == []) || (((length next) == 1) && not (next `elem` ["p","o","y"]))
+        then
+            if (length move) == 1
+                then
+                    putStrLn ("INVALID MOVE Cond{" ++ move ++ "}{" ++ next ++ "}")
+                else
+                    if (((length next) == 1) && not (next `elem` ["p","o","y"]))
+                        then
+                            putStrLn ("INVALID COLOUR " ++ next)
+                        else
+                            putStrLn ("INVALID MOVE " ++ move)
+        else
+            if (fst newBoard) == board
+                then
+                    do
+                        putStrLn ("Sorry, error: cannot move " ++ move)
+                        putStrLn "Your current board:"
+                        putBoard board
+                else
+                    do
+                        putBoard (fst newBoard)
+                        if (snd newBoard) > bonus
                             then
-                                putStrLn ("Condition for color " ++ next ++ " never Met")
+                                putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es)")
                             else
-                                play moves (fst newBoard) (snd newBoard) ((board !! newPosX) !! newPosY)
-                    else
-                        play (next:moves) (fst newBoard) (snd newBoard) ((board !! newPosX) !! newPosY)
-                    where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
-                            newPosX = fst(currBallPos (fst newBoard))
-                            newPosY = snd(currBallPos (fst newBoard))
+                                putStr ""
+                        putStrLn ""
+                        if (length next == 1)
+                            then
+                                if [newPrev] /= next
+                                    then
+                                        putStrLn ("Condition for color " ++ next ++ " never met")
+                                    else
+                                        play moves (fst newBoard) (snd newBoard) (newPrev)
+                            else
+                                play (next:moves) (fst newBoard) (snd newBoard) (newPrev)
+                            where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
+                                    newPosX = fst(currBallPos (fst newBoard))
+                                    newPosY = snd(currBallPos (fst newBoard))
+                                    newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
 play (move:moves) board bonus prev = play (move:"None":moves) board bonus prev
 
 getPos :: [String] -> Char -> [(Int, Int)]
@@ -76,7 +117,7 @@ makeMove board move color bonus prev
  | move == "Left"   = ((take row board ++ [fst(leftRow)] ++ drop (row+1) board), (snd leftRow))
  | move == "Up" = moveUp board row idx prev bonus color
  | move == "Down" = moveDown board row idx prev bonus color
- | otherwise    = error move
+ | otherwise    = ([],-1)
     where   rightRow = moveRight (board !! row) idx prev bonus color
             leftRow = moveLeft (board !! row) idx prev bonus color
             row = (fst (currBallPos board))
@@ -86,7 +127,7 @@ moveRight :: String -> Int -> Char -> Int -> String -> (String, Int)
 moveRight line position prev bonus color
  | (position > ((length line) - 3)) = (line, bonus)
  | [(line !! (newPos))] == color = (singleRight, bonus)
- | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y'])    = (line, bonus)
+ | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (line, bonus)
  | (line !! (newPos)) == 'b'  = moveRight singleRight (newPos) (line !! (newPos)) (bonus+1) color
  | otherwise    =  moveRight (singleRight) (newPos) (line !! (newPos)) bonus color
     where   singleRight = moveOneRight line position prev '@'
@@ -96,7 +137,7 @@ moveLeft :: String -> Int -> Char -> Int -> String -> (String, Int)
 moveLeft line position prev bonus color
  | (position < 2)   = (line,bonus)
  | [(line !! (newPos))] == color = (singleLeft, bonus)
- | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y'])    = (line, bonus)
+ | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (line, bonus)
  | (line !! (newPos)) == 'b'   = moveLeft (singleLeft) (newPos) (line !! (newPos)) (bonus+1) color
  | otherwise   = moveLeft (singleLeft) (newPos) (line !! (newPos)) bonus color
     where   singleLeft = moveOneLeft line position prev '@'
@@ -106,7 +147,7 @@ moveUp :: [String] -> Int -> Int -> Char -> Int -> String -> ([String], Int)
 moveUp board row position prev bonus color
  | (row < 1)    = (board, bonus)
  | [((board !! (newPos)) !! position)] == color   = (singleUp, bonus)
- | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y'])    = (board, bonus)
+ | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (board, bonus)
  | ((board !! (newPos)) !! position) == 'b'   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) (bonus +1) color
  | otherwise   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) bonus color
     where   singleUp = moveOneUp board row position '@' prev
@@ -116,7 +157,7 @@ moveDown :: [String] -> Int -> Int -> Char -> Int -> String -> ([String], Int)
 moveDown board row position prev bonus color
  | (row >= (length board)-1)    = (board, bonus)
  | [((board !! (newPos)) !! position)] == color   = (singleDown, bonus)
- | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y'])    = (board, bonus)
+ | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (board, bonus)
  | ((board !! (newPos)) !! position) == 'b'  = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) (bonus+1) color
  | otherwise   = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) bonus color
     where   singleDown = moveOneDown board row position '@' prev
@@ -153,11 +194,17 @@ getDirections func list x = do
             do
                 getDirections func (list ++ (parseMove func move)) (x+1)
 
+parseCond :: String -> [String]
+parseCond move
+ | (length move > 4) && ((take 4 move) == "Cond")   = [(take 1 $ drop 5 move), (take (len-8-1) $ drop 8 move)]
+ | otherwise    = [move]
+    where   len = length move
+
 parseMove :: [String] -> String -> [String]
 parseMove func move
- | (length move > 4) && ((take 4 move) == "Cond")   = [(take 1 $ drop 5 move), (take (len-8-1) $ drop 8 move)]
- | (length move > 4) && ((take 4 move) == "Loop") = concat $ map (parseMove func) $ concat $ replicate itr (splitString ',' (take (len-8-1) $ drop 8 move) [])
- | move == "Function"   = func
+ | (length move > 4) && ((take 4 move) == "Cond")   = parseCond move
+ | (length move > 4) && ((take 4 move) == "Loop") = concat $ map (parseCond) $ concat $ replicate itr (splitString ',' (take (len-8-1) $ drop 8 move) [])
+ | move == "Function"   = concat $ map (parseCond) func
  | otherwise = [move]
     where   len = length move
             itr = read $ take 1 $ drop 5 move :: Int
