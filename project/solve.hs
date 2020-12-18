@@ -1,3 +1,7 @@
+module Solve
+  ( solveHelper
+  ) where
+
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
 -- import Data.Text.Conversions as Text
@@ -10,30 +14,54 @@ import Data.Char
 import Data.List
 
 import Text.Printf
-
-import Kodable
 import Solvable
 import Data.Ord
+import Solvable
+
+-- HANDLE * next and colour current then no need for CONDITIONAL
 
 shortest list = minimumBy (comparing length) list
 
-solve :: [String] -> (Int, Int) -> Int -> [(Int, Int, Int)] -> [String] -> [[String]]
-solve board (x,y) bonus visited path
- | (((board !! x) !! y == 't') && (bonus /= 3)) = []
- | ((board !! x) !! y == 't') && (bonus == 3) = [path]
+currBallPos :: [String]  -> (Int,Int)
+currBallPos xs = if length positions == 1 then head positions else (-1,-1)
+                    where positions = getPos xs '@'
+
+getPos :: [String] -> Char -> [(Int, Int)]
+getPos xs c = [(i,j) | (i,l) <- (zip [0..] xs), j <- elemIndices c l]
+
+solve :: String -> IO [String]
+solve name = do
+    board <- fmap lines (readFile name)
+    isSolv <- isSolvable name
+    if isSolv
+        then
+            return (shortest (solveHelper board (currBallPos board) 0 [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] (length (getReachableBonuses board))))
+        else
+            do
+                return ["The path is not solvable"]
+
+solveHelper :: [String] -> (Int, Int) -> Int -> [(Int, Int, Int)] -> [String] -> Int -> [[String]]
+solveHelper board (x,y) bonus visited path totalBonuses
+ | (((board !! x) !! y == 't') && (bonus /= totalBonuses)) = []
+ | ((board !! x) !! y == 't') && (bonus == totalBonuses) = [path]
  | otherwise = leftSolve ++ rightSolve ++ upSolve ++ downSolve
     where   (leftBoard, (leftX, leftY), leftBonus) = left  (board, (x,y), bonus)
             (rightBoard, (rightX, rightY), rightBonus) = right  (board, (x,y), bonus)
             (upBoard, (upX, upY), upBonus) = up  (board, (x,y), bonus)
             (downBoard, (downX, downY), downBonus) = down  (board, (x,y), bonus)
-            leftSolve = if ((notVisited (leftX, leftY, leftBonus)) && ((leftX, leftY)/=(x,y)))  then solve leftBoard (leftX, leftY) leftBonus (visited ++ [(leftX, leftY, leftBonus)]) (path ++ [leftMove]) else []
-            rightSolve = if ((notVisited (rightX, rightY, rightBonus)) && ((rightX, rightY)/=(x,y))) then solve rightBoard (rightX, rightY) rightBonus (visited ++ [(rightX, rightY, rightBonus)]) (path ++ [rightMove]) else []
-            upSolve = if ((notVisited (upX, upY, upBonus)) && ((upX, upY)/=(x,y))) then solve upBoard (upX, upY) upBonus (visited ++ [(upX, upY, upBonus)]) (path ++ [upMove]) else []
-            downSolve = if ((notVisited (downX, downY, downBonus)) && ((downX, downY)/=(x,y))) then solve downBoard (downX, downY) downBonus (visited ++ [(downX, downY, downBonus)]) (path ++ [downMove]) else []
-            leftMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then ("Cond{"++[((board !! x) !! y)]++"}{Left}") else "Left"
-            rightMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then ("Cond{"++[((board !! x) !! y)]++"}{Right}") else "Right"
-            upMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then ("Cond{"++[((board !! x) !! y)]++"}{Up}") else "Up"
-            downMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then ("Cond{"++[((board !! x) !! y)]++"}{Down}") else "Down"
+            leftSolve = if ((notVisited (leftX, leftY, leftBonus)) && ((leftX, leftY)/=(x,y)))  then solveHelper leftBoard (leftX, leftY) leftBonus (visited ++ [(leftX, leftY, leftBonus)]) (path ++ leftMove) totalBonuses else []
+            rightSolve = if ((notVisited (rightX, rightY, rightBonus)) && ((rightX, rightY)/=(x,y))) then solveHelper rightBoard (rightX, rightY) rightBonus (visited ++ [(rightX, rightY, rightBonus)]) (path ++ rightMove) totalBonuses else []
+            upSolve = if ((notVisited (upX, upY, upBonus)) && ((upX, upY)/=(x,y))) then solveHelper upBoard (upX, upY) upBonus (visited ++ [(upX, upY, upBonus)]) (path ++ upMove) totalBonuses else []
+            downSolve = if ((notVisited (downX, downY, downBonus)) && ((downX, downY)/=(x,y))) then solveHelper downBoard (downX, downY) downBonus (visited ++ [(downX, downY, downBonus)]) (path ++ downMove) totalBonuses else []
+            leftMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condLeft else ["Left"]
+            rightMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condRight else ["Right"]
+            upMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condUp else ["Up"]
+            downMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condDown else ["Down"]
+            condLeft  = if (last == ["Left"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Left}")]
+            condRight  = if (last == ["Right"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Right}")]
+            condUp  = if (last == ["Up"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Up}")]
+            condDown  = if (last == ["Down"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Down}")]
+            last = drop ((length path) -1) path
             notVisited (x,y,bonus) = if ((x,y,bonus) `elem` visited) then False else True
 
 right :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)

@@ -1,8 +1,6 @@
 module Kodable
   ( load
   , play
-  , currBallPos
-  , getPos
   , makeMove
   , moveRight
   , moveLeft
@@ -15,7 +13,6 @@ module Kodable
   , parseMove
   , getDirections
   , splitString
-  , putBoard
   ) where
 
 import qualified Data.Text    as Text
@@ -28,34 +25,55 @@ import Control.Monad.State
 
 import Data.Char
 import Data.List
-
 import Text.Printf
+
+import Solve
+import Helpers
+import Solvable
+
+checkRow :: String -> Int -> Int -> Bool
+checkRow [] _ _ = True
+checkRow (c:cs) pos rowLen
+ | ((pos `rem` 2) == 0) && pos<=(rowLen -1)  = if c `elem` ['p','o','y','t','-','b', '@', '*'] then checkRow cs (pos+1) rowLen else False
+ | otherwise    = if (c== ' ') then checkRow cs (pos+1) rowLen else False
+
+validBoard :: [String] -> Int -> Bool
+validBoard [] _ = True
+validBoard (row:rows) rowLen = if (checkRow row 0 rowLen) == True then validBoard rows rowLen else False
+
+valBoard :: [String] -> Bool
+valBoard board = validBoard board (length (board!!0))
 
 load :: String -> IO ()
 load name = do
-    xs <- fmap Text.lines (Text.readFile name)
+    xs <- fmap lines (readFile name)
     putStrLn "Read map successfully!"
-    putStrLn "Initial:"
-    putBoard (map (Text.unpack) xs)
-    putStr ">"
-    option <- getLine
-    if option == "play"
-        then
+    if (not (valBoard xs))
+        then 
+            putStrLn "INVALID BOARD"
+        else
             do
-                moves <- getDirections [] [] 0
-                play moves (map (Text.unpack) xs) 0 '-'
-    else
-        if ((take 5 option) == "play ")
-            then
-                do
-                    moves <- getDirections (splitString ' ' (drop 5 option) []) [] 0
-                    play moves (map (Text.unpack) xs) 0 '-'
-            else
-                putStrLn "INVALID OPTION"
+                putStrLn "Initial:"
+                putBoard xs
+                putStr ">"
+                option <- getLine
+                if option == "play"
+                    then
+                        do
+                            moves <- getDirections [] [] 0
+                            play moves xs 0 '-'
+                else
+                    if ((take 5 option) == "play ")
+                        then
+                            do
+                                moves <- getDirections (splitString ' ' (drop 5 option) []) [] 0
+                                play moves xs 0 '-'
+                        else
+                            putStrLn "INVALID OPTION"
 
-currBallPos :: [String]  -> (Int,Int)
-currBallPos xs = if length positions == 1 then head positions else (-1,-1)
-                    where positions = getPos xs '@'
+-- currBallPos :: [String]  -> (Int,Int)
+-- currBallPos xs = if length positions == 1 then head positions else (-1,-1)
+--                     where positions = getPos xs '@'
 
 play :: [String] -> [String] -> Int -> Char -> IO ()
 play [] _ _ _ = return ()
@@ -66,50 +84,65 @@ play ["None"] _ _ prev = do
         else
             return ()
 play (move:next:moves) board bonus prev = do
-    if ((fst newBoard) == []) || (((length next) == 1) && not (next `elem` ["p","o","y"]))
+    if (move == "Hint") || (move == "Solve")
         then
-            if (length move) == 1
-                then
-                    putStrLn ("INVALID MOVE Cond{" ++ move ++ "}{" ++ next ++ "}")
-                else
-                    if (((length next) == 1) && not (next `elem` ["p","o","y"]))
-                        then
-                            putStrLn ("INVALID COLOUR " ++ next)
-                        else
-                            putStrLn ("INVALID MOVE " ++ move)
+            do
+                if (move == "Solve")
+                    then
+                        do
+                            putStrLn "Solution:"
+                            putStrLn (show (shortest (solveHelper board (currBallPos board) bonus [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] 3)))
+                            putStrLn ""
+                    else
+                        do
+                            putStrLn ("Hint: " ++ (show ((shortest (solveHelper board (currBallPos board) bonus [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] 3))!!0)))
+                            putStrLn ""
         else
-            if (fst newBoard) == board
-                then
-                    do
-                        putStrLn ("Sorry, error: cannot move " ++ move)
-                        putStrLn "Your current board:"
-                        putBoard board
-                else
-                    do
-                        putBoard (fst newBoard)
-                        if (snd newBoard) > bonus
+            do
+                if ((fst newBoard) == []) || (((length next) == 1) && not (next `elem` ["p","o","y"]))
+                    then
+                        if (length move) == 1
                             then
-                                putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es)")
+                                putStrLn ("INVALID MOVE Cond{" ++ move ++ "}{" ++ next ++ "}")
                             else
-                                putStr ""
-                        putStrLn ""
-                        if (length next == 1)
-                            then
-                                if [newPrev] /= next
+                                if (((length next) == 1) && not (next `elem` ["p","o","y"]))
                                     then
-                                        putStrLn ("Condition for color " ++ next ++ " never met")
+                                        putStrLn ("INVALID COLOUR " ++ next)
                                     else
-                                        play moves (fst newBoard) (snd newBoard) (newPrev)
+                                        putStrLn ("INVALID MOVE " ++ move)
+                    else
+                        if (fst newBoard) == board
+                            then
+                                do
+                                    putStrLn ("Sorry, error: cannot move " ++ move)
+                                    putStrLn "Your current board:"
+                                    putBoard board
                             else
-                                play (next:moves) (fst newBoard) (snd newBoard) (newPrev)
-                            where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
-                                    newPosX = fst(currBallPos (fst newBoard))
-                                    newPosY = snd(currBallPos (fst newBoard))
-                                    newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
+                                do
+                                    putBoard (fst newBoard)
+                                    if (snd newBoard) > bonus
+                                        then
+                                            putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es) [" ++ (show (snd newBoard)) ++ " out of " ++ (show (length (getReachableBonuses board))) ++ " reachable bonuses]")
+                                        else
+                                            putStr ""
+                                    putStrLn ""
+                                    if (length next == 1)
+                                        then
+                                            if [newPrev] /= next
+                                                then
+                                                    putStrLn ("Condition for color " ++ next ++ " never met")
+                                                else
+                                                    play moves (fst newBoard) (snd newBoard) (newPrev)
+                                        else
+                                            play (next:moves) (fst newBoard) (snd newBoard) (newPrev)
+                                        where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
+                                                newPosX = fst(currBallPos (fst newBoard))
+                                                newPosY = snd(currBallPos (fst newBoard))
+                                                newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
 play (move:moves) board bonus prev = play (move:"None":moves) board bonus prev
 
-getPos :: [String] -> Char -> [(Int, Int)]
-getPos xs c = [(i,j) | (i,l) <- (zip [0..] xs), j <- elemIndices c l]
+-- getPos :: [String] -> Char -> [(Int, Int)]
+-- getPos xs c = [(i,j) | (i,l) <- (zip [0..] xs), j <- elemIndices c l]
 
 makeMove :: [String] -> String -> String -> Int -> Char -> ([String], Int)
 makeMove board move color bonus prev
@@ -210,11 +243,11 @@ parseMove func move
             itr = read $ take 1 $ drop 5 move :: Int
 
 
-putBoard :: [String] -> IO ()
-putBoard [] = return ()
-putBoard (l:ls) = do
-    putStrLn l
-    putBoard ls
+-- putBoard :: [String] -> IO ()
+-- putBoard [] = return ()
+-- putBoard (l:ls) = do
+--     putStrLn l
+--     putBoard ls
 
 splitString :: Char -> String -> String -> [String]
 splitString del [] ds = [ds]

@@ -1,7 +1,8 @@
 module Solvable
-  ( getBoardList
-  , isSolvable
+  ( isSolvable
   , isSolvableHelper
+  , getBoardList
+  , getReachableBonuses
   ) where
 
 import qualified Data.Text    as Text
@@ -16,13 +17,7 @@ import Data.Char
 import Data.List
 
 import Text.Printf
-
-import Kodable
-
-getBoardList :: String -> IO [String]
-getBoardList name = do 
-    brd <- fmap lines (readFile name)
-    return brd
+import Helpers
 
 isSolvable :: String -> IO Bool
 isSolvable name =  do
@@ -67,3 +62,16 @@ oneDirection board parent (x,y)
             isLeft (a,b) (x,y) = if ((y+2) == b) then True else False
             isUp (a,b) (x,y) = if ((x+1) == a) then True else False
             isDown (a,b) (x,y) = if ((x-1) == a) then True else False
+
+getReachableBonuses :: [String] -> [(Int, Int)]
+getReachableBonuses board = reachableBonuses board (getPos board 'b')
+
+reachableBonuses :: [String] -> [(Int, Int)] -> [(Int, Int)]
+reachableBonuses _ [] = []
+reachableBonuses board (b:bs) = if  (isSolvableHelper newBoard (currBallPos newBoard) (currBallPos newBoard) [(currBallPos newBoard)]) == True then (b : (reachableBonuses board bs)) else reachableBonuses board bs
+    where   newBoard = replaceCell noTBoard b 't'
+            noTBoard = replaceCell board targetPos '-'
+            targetPos = head (getPos board 't')
+
+replaceCell :: [String] -> (Int, Int) -> Char -> [String]
+replaceCell board (x,y) c = (take x board) ++ [((take y (board!!x)) ++ [c] ++ (drop (y+1) (board!!x)))] ++ (drop (x+1) board)
