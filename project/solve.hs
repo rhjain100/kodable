@@ -53,16 +53,21 @@ solveHelper board (x,y) bonus visited path totalBonuses
             rightSolve = if ((notVisited (rightX, rightY, rightBonus)) && ((rightX, rightY)/=(x,y))) then solveHelper rightBoard (rightX, rightY) rightBonus (visited ++ [(rightX, rightY, rightBonus)]) (path ++ rightMove) totalBonuses else []
             upSolve = if ((notVisited (upX, upY, upBonus)) && ((upX, upY)/=(x,y))) then solveHelper upBoard (upX, upY) upBonus (visited ++ [(upX, upY, upBonus)]) (path ++ upMove) totalBonuses else []
             downSolve = if ((notVisited (downX, downY, downBonus)) && ((downX, downY)/=(x,y))) then solveHelper downBoard (downX, downY) downBonus (visited ++ [(downX, downY, downBonus)]) (path ++ downMove) totalBonuses else []
-            leftMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condLeft else ["Left"]
-            rightMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condRight else ["Right"]
-            upMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condUp else ["Up"]
-            downMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) then condDown else ["Down"]
+            leftMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condLeft else ["Left"]
+            rightMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condRight else ["Right"]
+            upMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condUp else ["Up"]
+            downMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condDown else ["Down"]
             condLeft  = if (last == ["Left"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Left}")]
             condRight  = if (last == ["Right"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Right}")]
             condUp  = if (last == ["Up"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Up}")]
             condDown  = if (last == ["Down"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Down}")]
             last = drop ((length path) -1) path
             notVisited (x,y,bonus) = if ((x,y,bonus) `elem` visited) then False else True
+            stopped dir
+             | dir == ["Right"]   = if ((rightX, rightY)==(x,y)) then True else False
+             | dir == ["Left"]    = if ((leftX, leftY)==(x,y)) then True else False
+             | dir == ["Up"]    = if ((upX, upY)==(x,y)) then True else False
+             | dir == ["Down"]    = if ((downX, downY)==(x,y)) then True else False
 
 right :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 right  (board, (x,y), bonus)
