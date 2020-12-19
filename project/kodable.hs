@@ -64,16 +64,36 @@ loadHelper xs = do
     if option == "play"
         then
             do
-                moves <- getDirections [] [] 0
-                play moves xs 0 '-' [] (totalBonuses xs)
-                loadHelper xs
+                if (isSolvableHelper xs (currBallPos xs) (currBallPos xs) [(currBallPos xs)]) == True
+                    then
+                        do
+                            moves <- getDirections [] [] 0
+                            play moves xs 0 '-' [] (totalBonuses xs)
+                            loadHelper xs
+                    else
+                        do 
+                            putStrLn "The map loaded is not solvable (Play not possible). Please load another map!"
+                            loadHelper xs
         else
             if ((take 5 option) == "play ")
                 then
-                    do
-                        moves <- getDirections (splitString ' ' (drop 5 option) []) [] 0
-                        play moves xs 0 '-' (splitString ' ' (drop 5 option) []) (totalBonuses xs)
-                        loadHelper xs
+                    if (isSolvableHelper xs (currBallPos xs) (currBallPos xs) [(currBallPos xs)]) == True
+                        then
+                            do
+                                if (length (splitString ' ' (drop 5 option) [])) == 3
+                                    then
+                                        do
+                                            moves <- getDirections (splitString ' ' (drop 5 option) []) [] 0
+                                            play moves xs 0 '-' (splitString ' ' (drop 5 option) []) (totalBonuses xs)
+                                            loadHelper xs
+                                    else
+                                        do 
+                                            putStrLn "Please enter valid function after play (3 moves separated by space)"
+                                            loadHelper xs
+                        else
+                            do 
+                                putStrLn "The map loaded is not solvable (Play not possible). Please load another map!"
+                                loadHelper xs
                 else
                     if (option == "check")
                         then
@@ -105,9 +125,6 @@ loadHelper xs = do
                                                     where   issolvable xs = if (isSolvableHelper xs (currBallPos xs) (currBallPos xs) [(currBallPos xs)]) == True then "Solvable." else "Not Solvable."
                                                             totalBonuses board = (length (getReachableBonuses board))
 
--- currBallPos :: [String]  -> (Int,Int)
--- currBallPos xs = if length positions == 1 then head positions else (-1,-1)
---                     where positions = getPos xs '@'
 
 play :: [String] -> [String] -> Int -> Char -> [String] -> Int -> IO ()
 play [] _ _ _ _ _ = return ()
@@ -122,79 +139,94 @@ play ["None"] _ bonus prev _ bonusCnt = do
                 else
                     putStrLn "Sorry, you couldn't reach the target."
 play (move:next:moves) board bonus prev func bonusCnt = do
-    if (move == "Hint") || (move == "Solve")
+    putStrLn ""
+    if (((board !! (fst currPos)) !! (snd currPos)) == 't') && (bonus == bonusCnt)
         then
             do
-                if (move == "Solve")
-                    then
-                        do
-                            putStrLn "Solution:"
-                            putStrLn (show (shortest (solveHelper board (currBallPos board) bonus [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] bonusLeft)))
-                            putStrLn ""
-                    else
-                        do
-                            putStrLn ("Hint: " ++ ((shortest (solveHelper board (currBallPos board) bonus [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] bonusLeft))!!0))
-                            putStrLn ""
-                            continuePlay board bonus prev func bonusCnt
+                putStrLn "You have already reached target with all bonuses (But with extra remaining moves)"
+                putStrLn "Congratulations! You win the game!"
         else
             do
-                if ((fst newBoard) == []) || (((length next) == 1) && not (next `elem` ["p","o","y"]))
+                if (move == "Hint") || (move == "Solve")
                     then
-                        if (length move) == 1
-                            then
-                                putStrLn ("INVALID MOVE Cond{" ++ move ++ "}{" ++ next ++ "}")
-                            else
-                                if (((length next) == 1) && not (next `elem` ["p","o","y"]))
-                                    then
-                                        putStrLn ("INVALID COLOUR " ++ next)
-                                    else
-                                        putStrLn ("INVALID MOVE " ++ move)
+                        do
+                            if (move == "Solve")
+                                then
+                                    do
+                                        if (isSolvableHelper board (currPos) (currPos) [(currPos)]) == True
+                                            then
+                                                do
+                                                    putStrLn "Remaining path for Solution:"
+                                                    putStrLn (show (shortest (solveHelper board (currPos) 0 [((fst(currPos)),(snd(currPos)),0)] [] (bonusCnt - bonus))))
+                                                    putStrLn ""
+                                            else
+                                                do putStrLn "There is no solution from the path you have taken"
+                                else
+                                    do
+                                        if (isSolvableHelper board (currPos) (currPos) [(currPos)]) == True
+                                            then
+                                                do
+                                                    putStrLn ("Hint: " ++ ((shortest (solveHelper board (currPos) 0 [((fst(currPos)),(snd(currPos)),0)] [] (bonusCnt - bonus)))!!0))
+                                                    putStrLn ""
+                                                    continuePlay board bonus prev func bonusCnt
+                                            else
+                                                do putStrLn "There is no solution from the path you have taken"
                     else
-                        if (fst newBoard) == board
-                            then
-                                do
-                                    putStrLn ("Sorry, error: cannot move " ++ move)
-                                    putStrLn "Your current board:"
-                                    putBoard board
-                            else
-                                do
-                                    putBoard (fst newBoard)
-                                    if (snd newBoard) > bonus
+                        do
+                            if ((fst newBoard) == []) || (((length next) == 1) && not (next `elem` ["p","o","y"]))
+                                then
+                                    if (length move) == 1
                                         then
-                                            putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es) [" ++ (show (snd newBoard)) ++ " out of " ++ (show bonusCnt) ++ " reachable bonuses]")
+                                            putStrLn ("INVALID MOVE Cond{" ++ move ++ "}{" ++ next ++ "}")
                                         else
-                                            putStr ""
-                                    putStrLn ""
-                                    if (length next == 1)
-                                        then
-                                            if [newPrev] /= next
+                                            if (((length next) == 1) && not (next `elem` ["p","o","y"]))
                                                 then
-                                                    putStrLn ("Condition for color " ++ next ++ " never met")
+                                                    putStrLn ("INVALID COLOUR " ++ next)
                                                 else
-                                                    play moves (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
+                                                    putStrLn ("INVALID MOVE " ++ move)
+                                else
+                                    if (fst newBoard) == board
+                                        then
+                                            do
+                                                putStrLn ("Sorry, error: cannot move " ++ move)
+                                                putStrLn "Your current board:"
+                                                putBoard board
                                         else
-                                            play (next:moves) (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
-                                        where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
-                                                newPosX = fst(currBallPos (fst newBoard))
-                                                newPosY = snd(currBallPos (fst newBoard))
-                                                newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
-                                                bonusLeft = (length (getReachableBonuses board))
+                                            do
+                                                putBoard (fst newBoard)
+                                                if (snd newBoard) > bonus
+                                                    then
+                                                        putStrLn ("Got " ++ (show ((snd newBoard)-bonus)) ++ " bonus(es) [" ++ (show (snd newBoard)) ++ " out of " ++ (show bonusCnt) ++ " reachable bonuses]")
+                                                    else
+                                                        putStr ""
+                                                putStrLn ""
+                                                if (length next == 1)
+                                                    then
+                                                        if [newPrev] /= next
+                                                            then
+                                                                putStrLn ("Condition for color " ++ next ++ " never met")
+                                                            else
+                                                                play moves (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
+                                                    else
+                                                        play (next:moves) (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
+                                                            where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
+                                                                    newPosX = fst(currBallPos (fst newBoard))
+                                                                    newPosY = snd(currBallPos (fst newBoard))
+                                                                    newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
+                                                                    currPos = currBallPos board
 play (move:moves) board bonus prev func bonusCnt = play (move:"None":moves) board bonus prev func bonusCnt
-
--- getPos :: [String] -> Char -> [(Int, Int)]
--- getPos xs c = [(i,j) | (i,l) <- (zip [0..] xs), j <- elemIndices c l]
 
 continuePlay :: [String] -> Int -> Char -> [String] -> Int -> IO ()
 continuePlay board bonus prev func bonusCnt = do
     putStr "Continue Playing? (Y/N): "
     op <- getLine
-    if op == "Y"
+    if (op == "Y") || (op == "y")
         then
             do
                 moves <- getDirections func [] 1
                 play moves board bonus prev func bonusCnt
         else
-            if (op == "N")
+            if (op == "N") || (op == "n")
                 then
                     do
                         putStrLn "Ending board:"
@@ -305,13 +337,6 @@ parseMove func move
  | otherwise = [move]
     where   len = length move
             itr = read $ take 1 $ drop 5 move :: Int
-
-
--- putBoard :: [String] -> IO ()
--- putBoard [] = return ()
--- putBoard (l:ls) = do
---     putStrLn l
---     putBoard ls
 
 splitString :: Char -> String -> String -> [String]
 splitString del [] ds = [ds]

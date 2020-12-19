@@ -63,11 +63,11 @@ solveHelper board (x,y) bonus visited path totalBonuses
             condDown  = if (last == ["Down"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Down}")]
             last = drop ((length path) -1) path
             notVisited (x,y,bonus) = if ((x,y,bonus) `elem` visited) then False else True
-            stopped dir
-             | dir == ["Right"]   = if ((rightX, rightY)==(x,y)) then True else False
-             | dir == ["Left"]    = if ((leftX, leftY)==(x,y)) then True else False
-             | dir == ["Up"]    = if ((upX, upY)==(x,y)) then True else False
-             | dir == ["Down"]    = if ((downX, downY)==(x,y)) then True else False
+            stopped [dir]
+             | dir == "Right" ||  ((drop 7 dir) == "{Right}")  = if ((rightX, rightY)==(x,y)) then True else False
+             | dir == "Left" ||  ((drop 7 dir) == "{Left}")    = if ((leftX, leftY)==(x,y)) then True else False
+             | dir == "Up" ||  ((drop 7 dir) == "{Up}")    = if ((upX, upY)==(x,y)) then True else False
+             | dir == "Down" ||  ((drop 7 dir) == "{Down}")    = if ((downX, downY)==(x,y)) then True else False
 
 right :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 right  (board, (x,y), bonus)
