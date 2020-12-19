@@ -17,28 +17,36 @@ import Text.Printf
 import Solvable
 import Data.Ord
 import Solvable
+import Helpers
 
 -- HANDLE * next and colour current then no need for CONDITIONAL
 
-shortest list = minimumBy (comparing length) list
-
-currBallPos :: [String]  -> (Int,Int)
-currBallPos xs = if length positions == 1 then head positions else (-1,-1)
-                    where positions = getPos xs '@'
-
-getPos :: [String] -> Char -> [(Int, Int)]
-getPos xs c = [(i,j) | (i,l) <- (zip [0..] xs), j <- elemIndices c l]
-
 solve :: String -> IO [String]
 solve name = do
-    board <- fmap lines (readFile name)
+    board <- fmap lines (readFile name) 
     isSolv <- isSolvable name
     if isSolv
         then
-            return (shortest (solveHelper board (currBallPos board) 0 [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] (length (getReachableBonuses board))))
+            do
+                let solutions = (solveHelper board (currBallPos board) 0 [((fst(currBallPos board)),(snd(currBallPos board)),0)] [] (length (getReachableBonuses board)))
+                let shortestSol = shortest solutions
+                let shortestSols = filter (\x -> ((length x) == (length shortestSol))) solutions
+                return (minLoopAnswer shortestSols)
         else
             do
                 return ["The path is not solvable"]
+
+countLoops :: [String] -> Int
+countLoops [] = 0
+countLoops (m:ms) = if (take 4 m) == "Loop" then (1+ (countLoops ms)) else countLoops ms
+
+minLoopAnswer :: [[String]] -> [String]
+minLoopAnswer [path] = path
+minLoopAnswer (path:paths) = minLoop paths path (countLoops path)
+
+minLoop :: [[String]] -> [String] -> Int -> [String]
+minLoop [] minPath _ = minPath
+minLoop (path:paths) minPath loops = if ((countLoops path) < loops) then minLoop paths path (countLoops path) else minLoop paths minPath loops
 
 solveHelper :: [String] -> (Int, Int) -> Int -> [(Int, Int, Int)] -> [String] -> Int -> [[String]]
 solveHelper board (x,y) bonus visited path totalBonuses
@@ -49,25 +57,41 @@ solveHelper board (x,y) bonus visited path totalBonuses
             (rightBoard, (rightX, rightY), rightBonus) = right  (board, (x,y), bonus)
             (upBoard, (upX, upY), upBonus) = up  (board, (x,y), bonus)
             (downBoard, (downX, downY), downBonus) = down  (board, (x,y), bonus)
-            leftSolve = if ((notVisited (leftX, leftY, leftBonus)) && ((leftX, leftY)/=(x,y)))  then solveHelper leftBoard (leftX, leftY) leftBonus (visited ++ [(leftX, leftY, leftBonus)]) (path ++ leftMove) totalBonuses else []
-            rightSolve = if ((notVisited (rightX, rightY, rightBonus)) && ((rightX, rightY)/=(x,y))) then solveHelper rightBoard (rightX, rightY) rightBonus (visited ++ [(rightX, rightY, rightBonus)]) (path ++ rightMove) totalBonuses else []
-            upSolve = if ((notVisited (upX, upY, upBonus)) && ((upX, upY)/=(x,y))) then solveHelper upBoard (upX, upY) upBonus (visited ++ [(upX, upY, upBonus)]) (path ++ upMove) totalBonuses else []
-            downSolve = if ((notVisited (downX, downY, downBonus)) && ((downX, downY)/=(x,y))) then solveHelper downBoard (downX, downY) downBonus (visited ++ [(downX, downY, downBonus)]) (path ++ downMove) totalBonuses else []
-            leftMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condLeft else ["Left"]
-            rightMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condRight else ["Right"]
-            upMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condUp else ["Up"]
-            downMove = if (((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last)) then condDown else ["Down"]
+            leftSolve = if ((notVisited (leftX, leftY, leftBonus)) && ((leftX, leftY)/=(x,y)))  then solveHelper leftBoard (leftX, leftY) leftBonus (visited ++ [(leftX, leftY, leftBonus)]) (parsePath leftMove) totalBonuses else []
+            rightSolve = if ((notVisited (rightX, rightY, rightBonus)) && ((rightX, rightY)/=(x,y))) then solveHelper rightBoard (rightX, rightY) rightBonus (visited ++ [(rightX, rightY, rightBonus)]) (parsePath rightMove) totalBonuses else []
+            upSolve = if ((notVisited (upX, upY, upBonus)) && ((upX, upY)/=(x,y))) then solveHelper upBoard (upX, upY) upBonus (visited ++ [(upX, upY, upBonus)]) (parsePath upMove) totalBonuses else []
+            downSolve = if ((notVisited (downX, downY, downBonus)) && ((downX, downY)/=(x,y))) then solveHelper downBoard (downX, downY) downBonus (visited ++ [(downX, downY, downBonus)]) (parsePath downMove) totalBonuses else []
+            leftMove = if ((((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last))) || ((last ++ condLeft) == lastTwo) then condLeft else ["Left"]
+            rightMove = if ((((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last))) || ((last ++ condRight) == lastTwo) then condRight else ["Right"]
+            upMove = if ((((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last))) || ((last ++ condUp) == lastTwo) then condUp else ["Up"]
+            downMove = if ((((board !! x) !! y) `elem` ['p', 'o', 'y']) && (not (stopped last))) || ((last ++ condDown) == lastTwo) then condDown else ["Down"]
             condLeft  = if (last == ["Left"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Left}")]
             condRight  = if (last == ["Right"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Right}")]
             condUp  = if (last == ["Up"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Up}")]
             condDown  = if (last == ["Down"]) then [] else [("Cond{"++[((board !! x) !! y)]++"}{Down}")]
             last = drop ((length path) -1) path
+            lastToLast = take 1 $ drop ((length path)-2) path
+            lastTwo = take 2 $ drop ((length path)-3) path
             notVisited (x,y,bonus) = if ((x,y,bonus) `elem` visited) then False else True
             stopped [dir]
-             | dir == "Right" ||  ((drop 7 dir) == "{Right}")  = if ((rightX, rightY)==(x,y)) then True else False
-             | dir == "Left" ||  ((drop 7 dir) == "{Left}")    = if ((leftX, leftY)==(x,y)) then True else False
-             | dir == "Up" ||  ((drop 7 dir) == "{Up}")    = if ((upX, upY)==(x,y)) then True else False
-             | dir == "Down" ||  ((drop 7 dir) == "{Down}")    = if ((downX, downY)==(x,y)) then True else False
+             | dir == "Right" ||  ((drop 7 dir) == "{Right}") || ((isLoop dir) && (((getLoopMoves dir)!!1) == "Right"))  = if ((rightX, rightY)==(x,y)) then True else False
+             | dir == "Left" ||  ((drop 7 dir) == "{Left}") || ((isLoop dir) && (((getLoopMoves dir)!!1) == "Left"))    = if ((leftX, leftY)==(x,y)) then True else False
+             | dir == "Up" ||  ((drop 7 dir) == "{Up}") || ((isLoop dir) && (((getLoopMoves dir)!!1) == "Up"))    = if ((upX, upY)==(x,y)) then True else False
+             | dir == "Down" ||  ((drop 7 dir) == "{Down}")  || ((isLoop dir) && (((getLoopMoves dir)!!1) == "Down"))   = if ((downX, downY)==(x,y)) then True else False
+             | otherwise    = False
+            isLoop move = if ((take 4 move) == "Loop") && ((itr move) < 5) then True else False
+            getLoopMoves loop = splitString ',' (take ((length loop)-8-1) $ drop 8 loop) []
+            increaseItr loop = ("Loop{" ++  (itrPlus loop) ++ "}{" ++ ((getLoopMoves loop)!!0) ++ "," ++ ((getLoopMoves loop)!!1) ++ "}")
+            itrPlus loop = show ((read $ take 1 $ drop 5 loop :: Int) + 1)
+            itr loop = (read $ take 1 $ drop 5 loop :: Int)
+            parsePath move
+             | ((length path)>0) && (isLoop (lastToLast!!0)) && ((getLoopMoves (lastToLast!!0)) == (last ++ move))   = (take ((length path)-2) path) ++ [(increaseItr (lastToLast!!0))]
+             | ((length path)>2) && ((last ++ move) == lastTwo) && (not (isLoop (last!!0)))  = (take ((length path)-3) path) ++ ["Loop{2}{"++(lastTwo!!0)++","++(lastTwo!!1)++"}"]
+             | otherwise    = path ++ move
+
+splitString :: Char -> String -> String -> [String]
+splitString del [] ds = [ds]
+splitString del (c:cs) ds = if c==del then (ds:splitString del cs []) else splitString del cs (ds++[c])
 
 right :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 right  (board, (x,y), bonus)
