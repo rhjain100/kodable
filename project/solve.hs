@@ -1,5 +1,8 @@
 module Solve
   ( solveHelper
+  , minLoopAnswer
+  , minLoop
+  , countLoops
   ) where
 
 import qualified Data.Text    as Text
@@ -21,6 +24,10 @@ import Helpers
 
 -- HANDLE * next and colour current then no need for CONDITIONAL
 
+-- This function takes the name of a text file with the map and returns an IO [String] with the solution.
+-- Error check - It checks whether the map has a possible solution path or not first.
+-- Parameter: String (File name)
+--  Return : IO [String] (Solution)
 solve :: String -> IO [String]
 solve name = do
     board <- fmap lines (readFile name) 
@@ -36,18 +43,25 @@ solve name = do
             do
                 return ["The path is not solvable"]
 
+-- Simple function for counting the number of loops in a set of instructions
 countLoops :: [String] -> Int
 countLoops [] = 0
 countLoops (m:ms) = if (take 4 m) == "Loop" then (1+ (countLoops ms)) else countLoops ms
 
+-- Function that calls minLoop -> Simple function that iterates through a set of solutions and gives the one with the minimum number of loops
 minLoopAnswer :: [[String]] -> [String]
 minLoopAnswer [path] = path
 minLoopAnswer (path:paths) = minLoop paths path (countLoops path)
 
+-- Simple function that iterates through a set of solutions and gives the one with the minimum number of loops
 minLoop :: [[String]] -> [String] -> Int -> [String]
 minLoop [] minPath _ = minPath
 minLoop (path:paths) minPath loops = if ((countLoops path) < loops) then minLoop paths path (countLoops path) else minLoop paths minPath loops
 
+-- This function uses a DFS approach to find the Solutions to a map (Path that collects all reachable bonuses and ends at the target)
+-- It saves a list of visited nodes so as to not get stuck in a loop (Node format -> (row number, column number, bonus count))
+-- Parameters: Map, Current position of ball, bonus count (initially 0), visited node list (initially []), current path (initially []), total reachable bonus count
+-- Returns: List of solutions that collect all reachable bonuses and end at the target
 solveHelper :: [String] -> (Int, Int) -> Int -> [(Int, Int, Int)] -> [String] -> Int -> [[String]]
 solveHelper board (x,y) bonus visited path totalBonuses
  | (((board !! x) !! y == 't') && (bonus /= totalBonuses)) = []
@@ -89,10 +103,7 @@ solveHelper board (x,y) bonus visited path totalBonuses
              | ((length path)>2) && ((last ++ move) == lastTwo) && (not (isLoop (last!!0)))  = (take ((length path)-3) path) ++ ["Loop{2}{"++(lastTwo!!0)++","++(lastTwo!!1)++"}"]
              | otherwise    = path ++ move
 
-splitString :: Char -> String -> String -> [String]
-splitString del [] ds = [ds]
-splitString del (c:cs) ds = if c==del then (ds:splitString del cs []) else splitString del cs (ds++[c])
-
+-- function that gives the map state, the final position, and the bonus count after a right move
 right :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 right  (board, (x,y), bonus)
  | (y>= ((length (board!!x))-2)) || ((board!!x)!!(y+2)) == '*' = (board, (x,y), bonus)
@@ -100,6 +111,7 @@ right  (board, (x,y), bonus)
  | (board!!x)!!(y+2) == 'b' = right ((removeBonus board x (y+2)), (x,(y+2)), (bonus+1))
  | otherwise    = right (board, (x,(y+2)),bonus)
 
+-- function that gives the map state, the final position, and the bonus count after a left move
 left :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 left  (board, (x,y), bonus)
  | (y < 2) || ((board!!x)!!(y-2)) == '*' = (board, (x,y), bonus)
@@ -107,6 +119,7 @@ left  (board, (x,y), bonus)
  | (board!!x)!!(y-2) == 'b' = left ((removeBonus board x (y-2)), (x,(y-2)), (bonus+1))
  | otherwise    = left (board, (x,(y-2)),bonus)
 
+-- function that gives the map state, the final position, and the bonus count after a up move
 up :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 up  (board, (x,y), bonus)
  | (x < 1) || ((board!!(x-1))!!y) == '*' = (board, (x,y), bonus)
@@ -114,6 +127,7 @@ up  (board, (x,y), bonus)
  | ((board!!(x-1))!!y) == 'b' = up ((removeBonus board (x-1) y), ((x-1),y), (bonus+1))
  | otherwise    = up (board, ((x-1),y),bonus)
 
+-- function that gives the map state, the final position, and the bonus count after a down move
 down :: ([String], (Int, Int), Int) -> ([String], (Int, Int), Int)
 down  (board, (x,y), bonus)
  | (x >= ((length board)-1)) || ((board!!(x+1))!!y) == '*' = (board, (x,y), bonus)
@@ -121,5 +135,6 @@ down  (board, (x,y), bonus)
  | ((board!!(x+1))!!y) == 'b' = down ((removeBonus board (x+1) y), ((x+1),y), (bonus+1))
  | otherwise    = down (board, ((x+1),y),bonus)
 
+-- removes bonus at a particular position of the board
 removeBonus :: [String] -> Int -> Int -> [String]
 removeBonus board x y = (take x board) ++ [((take y (board!!x)) ++ "-" ++ (drop (y+1) (board!!x)))] ++ (drop (x+1) board)
