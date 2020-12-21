@@ -19,6 +19,13 @@ import Helpers
 import Solvable
 import Play
 
+menu :: IO ()
+menu = do
+    putStrLn "The available options are:"
+    putStrLn "check\nsolve\nplay\nquit"
+    putStrLn "Please enter one of the above options (Without spaces and capital letters)"
+    putStrLn "[You have the option to enter play with 3 space \nseparated moves (directions and conditionals) to set a Function]"
+
 -- This Function loads the map from a text file and initiates the program
 load :: String -> IO ()
 load name = do
@@ -37,6 +44,7 @@ load name = do
                         do
                             putStrLn "Initial:"
                             putBoard xs
+                            menu
                             loadHelper xs
 
 -- This function handles all the possible options in the program and calls

@@ -50,6 +50,7 @@ countLoops (m:ms) = if (take 4 m) == "Loop" then (1+ (countLoops ms)) else count
 
 -- Function that calls minLoop -> Simple function that iterates through a set of solutions and gives the one with the minimum number of loops
 minLoopAnswer :: [[String]] -> [String]
+minLoopAnswer [] = []
 minLoopAnswer [path] = path
 minLoopAnswer (path:paths) = minLoop paths path (countLoops path)
 

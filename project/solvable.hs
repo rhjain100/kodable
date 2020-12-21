@@ -82,8 +82,10 @@ getReachableBonuses board = reachableBonuses board (getPos board 'b')
 -- Checks whether all bonuses in a list are reachable or not, and accordingly filters the list to only reachable ones [(Int, Int)]
 reachableBonuses :: [String] -> [(Int, Int)] -> [(Int, Int)]
 reachableBonuses _ [] = []
-reachableBonuses board (b:bs) = if  (isSolvableHelper newBoard (currBallPos newBoard) (currBallPos newBoard) [(currBallPos newBoard)]) == True then (b : (reachableBonuses board bs)) else reachableBonuses board bs
+reachableBonuses board (b:bs) = if  ((isSolvableHelper newBoard (currBallPos newBoard) (currBallPos newBoard) [(currBallPos newBoard)]) == True) && (isSolvableHelper bonusBoard b b [b]) then (b : (reachableBonuses board bs)) else reachableBonuses board bs
     where   newBoard = replaceCell noTBoard b 't'
+            bonusBoard = replaceCell noAtboard b '@'
+            noAtboard = replaceCell board (currBallPos board) '-'
             noTBoard = replaceCell board targetPos '-'
             targetPos = head (getPos board 't')
 

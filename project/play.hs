@@ -44,11 +44,11 @@ play [] _ _ _ _ _ = return ()
 play ["None"] _ bonus prev _ bonusCnt = do
     if prev == 't' && (bonus == bonusCnt)
         then
-            putStrLn "Congratulations! You win the game! (with all reachable bonuses)"
+            putStrLn ("Congratulations! You win the game! (with all " ++ (show(bonusCnt)) ++ "/" ++ (show(bonusCnt)) ++ " reachable bonuses)")
         else
             if prev == 't'
                 then
-                    putStrLn ("Congratulations! You win the game! (with " ++ (show bonus) ++ " out of " ++ (show bonusCnt) ++ " bonuses")
+                    putStrLn ("Congratulations! You win the game! (with " ++ (show bonus) ++ " out of " ++ (show bonusCnt) ++ " bonuses)")
                 else
                     putStrLn "Sorry, you couldn't reach the target."
 play (move:next:moves) board bonus prev func bonusCnt = do
@@ -125,7 +125,7 @@ play (move:next:moves) board bonus prev func bonusCnt = do
                                                                 play moves (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
                                                     else
                                                         play (next:moves) (fst newBoard) (snd newBoard) (newPrev) func bonusCnt
-                                                            where   newBoard = if (length next == 1) then makeMove board move next bonus prev else makeMove board move "None" bonus prev
+                                                            where   newBoard = if (length next == 1) then makeMove board move next bonus prev bonusCnt else makeMove board move "None" bonus prev bonusCnt
                                                                     newPosX = fst(currBallPos (fst newBoard))
                                                                     newPosY = snd(currBallPos (fst newBoard))
                                                                     newPrev = if ((board !! newPosX) !! newPosY) == 'b' then '-' else ((board !! newPosX) !! newPosY)
@@ -161,67 +161,67 @@ continuePlay board bonus prev func bonusCnt = do
 -- the new map along with the new bonus count.
 -- It's parameters include - current board, current move, colour of next conditional move, 
 -- bonus count, and previous state of ball's cell
-makeMove :: [String] -> String -> String -> Int -> Char -> ([String], Int)
-makeMove board move color bonus prev
+makeMove :: [String] -> String -> String -> Int -> Char -> Int -> ([String], Int)
+makeMove board move color bonus prev bonusCnt
  | move == "Right"  = ((take row board ++ [fst(rightRow)] ++ drop (row+1) board), (snd rightRow))
  | move == "Left"   = ((take row board ++ [fst(leftRow)] ++ drop (row+1) board), (snd leftRow))
- | move == "Up" = moveUp board row idx prev bonus color
- | move == "Down" = moveDown board row idx prev bonus color
+ | move == "Up" = moveUp board row idx prev bonus color bonusCnt
+ | move == "Down" = moveDown board row idx prev bonus color bonusCnt
  | otherwise    = ([],-1)
-    where   rightRow = moveRight (board !! row) idx prev bonus color
-            leftRow = moveLeft (board !! row) idx prev bonus color
+    where   rightRow = moveRight (board !! row) idx prev bonus color bonusCnt
+            leftRow = moveLeft (board !! row) idx prev bonus color bonusCnt
             row = (fst (currBallPos board))
             idx = (snd (currBallPos board))
 
 -- Function edits map by moving ball to the right on the basis of the last state of the map.
 -- Parameters: row, current position, previous cell state, bonus count, condiitional colour
 -- return value: new row and new bonus count
-moveRight :: String -> Int -> Char -> Int -> String -> (String, Int)
-moveRight line position prev bonus color
+moveRight :: String -> Int -> Char -> Int -> String -> Int -> (String, Int)
+moveRight line position prev bonus color bonusCnt
  | (position > ((length line) - 3)) = (line, bonus)
- | [(line !! (newPos))] == color = (singleRight, bonus)
+ | ([(line !! (newPos))] == color) || (((line !! (newPos))=='t') && (bonus == bonusCnt)) = (singleRight, bonus)
  | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (line, bonus)
- | (line !! (newPos)) == 'b'  = moveRight singleRight (newPos) (line !! (newPos)) (bonus+1) color
- | otherwise    =  moveRight (singleRight) (newPos) (line !! (newPos)) bonus color
+ | (line !! (newPos)) == 'b'  = moveRight singleRight (newPos) (line !! (newPos)) (bonus+1) color bonusCnt
+ | otherwise    =  moveRight (singleRight) (newPos) (line !! (newPos)) bonus color bonusCnt
     where   singleRight = moveOneRight line position prev '@'
             newPos = position + 2
 
 -- Function edits map by moving ball to the left on the basis of the last state of the map.
 -- Parameters: row, current position, previous cell state, bonus count, condiitional colour
 -- return value: new row and new bonus count
-moveLeft :: String -> Int -> Char -> Int -> String -> (String, Int)
-moveLeft line position prev bonus color
+moveLeft :: String -> Int -> Char -> Int -> String -> Int -> (String, Int)
+moveLeft line position prev bonus color bonusCnt
  | (position < 2)   = (line,bonus)
- | [(line !! (newPos))] == color = (singleLeft, bonus)
+ | ([(line !! (newPos))] == color)  || (((line !! (newPos))=='t') && (bonus == bonusCnt)) = (singleLeft, bonus)
  | not ((line !! (newPos)) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (line, bonus)
- | (line !! (newPos)) == 'b'   = moveLeft (singleLeft) (newPos) (line !! (newPos)) (bonus+1) color
- | otherwise   = moveLeft (singleLeft) (newPos) (line !! (newPos)) bonus color
+ | (line !! (newPos)) == 'b'   = moveLeft (singleLeft) (newPos) (line !! (newPos)) (bonus+1) color bonusCnt
+ | otherwise   = moveLeft (singleLeft) (newPos) (line !! (newPos)) bonus color bonusCnt
     where   singleLeft = moveOneLeft line position prev '@'
             newPos = position - 2
 
 -- Function edits map by moving ball upwards on the basis of the last state of the map.
 -- Parameters: map, current row, current position, previous cell state, bonus count, condiitional colour
 -- return value: new map and new bonus count
-moveUp :: [String] -> Int -> Int -> Char -> Int -> String -> ([String], Int)
-moveUp board row position prev bonus color
+moveUp :: [String] -> Int -> Int -> Char -> Int -> String -> Int -> ([String], Int)
+moveUp board row position prev bonus color bonusCnt
  | (row < 1)    = (board, bonus)
- | [((board !! (newPos)) !! position)] == color   = (singleUp, bonus)
+ | ([((board !! (newPos)) !! position)] == color)  || ((((board !! (newPos)) !! position)=='t') && (bonus == bonusCnt))   = (singleUp, bonus)
  | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (board, bonus)
- | ((board !! (newPos)) !! position) == 'b'   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) (bonus +1) color
- | otherwise   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) bonus color
+ | ((board !! (newPos)) !! position) == 'b'   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) (bonus +1) color bonusCnt
+ | otherwise   = moveUp (singleUp) (newPos) position ((board !! (newPos)) !! position) bonus color bonusCnt
     where   singleUp = moveOneUp board row position '@' prev
             newPos = row-1
 
 -- Function edits map by moving ball downwards on the basis of the last state of the map.
 -- Parameters: map, current row, current position, previous cell state, bonus count, condiitional colour
 -- return value: new map and new bonus count
-moveDown :: [String] -> Int -> Int -> Char -> Int -> String -> ([String], Int)
-moveDown board row position prev bonus color
+moveDown :: [String] -> Int -> Int -> Char -> Int -> String -> Int -> ([String], Int)
+moveDown board row position prev bonus color bonusCnt
  | (row >= (length board)-1)    = (board, bonus)
- | [((board !! (newPos)) !! position)] == color   = (singleDown, bonus)
+ | ([((board !! (newPos)) !! position)] == color) || ((((board !! (newPos)) !! position)=='t') && (bonus == bonusCnt))   = (singleDown, bonus)
  | not (((board !! (newPos)) !! position) `elem` ['-', 'b', 'p', 'o', 'y', 't'])    = (board, bonus)
- | ((board !! (newPos)) !! position) == 'b'  = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) (bonus+1) color
- | otherwise   = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) bonus color
+ | ((board !! (newPos)) !! position) == 'b'  = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) (bonus+1) color bonusCnt
+ | otherwise   = moveDown (singleDown) (newPos) position ((board !! (newPos)) !! position) bonus color bonusCnt
     where   singleDown = moveOneDown board row position '@' prev
             newPos = row+1
 
@@ -258,7 +258,16 @@ getDirections func list x = do
     move <- getLine
     if (move == "UNDO")
         then
-            do getDirections func (take ((length list)-1) list) (x-1)
+            do 
+                if ((length list)>=1)
+                    then
+                        do
+                            putStrLn ("The move " ++ (show (drop ((length list)-1) list)) ++ " has been undone")
+                            getDirections func (take ((length list)-1) list) (x-1)
+                    else
+                        do 
+                            putStrLn "There are no moves to Undo"
+                            getDirections func list x
         else
             do
                 if (not (validMove move) && move /= "") || ((move == "Function") && func == [])
